@@ -12,3 +12,7 @@ logs/
 results_*.log
 *.tgz
 REPORT.md
+
+# numpy 版實驗二的交易代理結果使用舊的狀態定義，以 results/exp2_pl/ 為準
+results/exp2/rl_*.json
+results/exp2_summary.json
