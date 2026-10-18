@@ -1,0 +1,14 @@
+# 虛擬環境與快取
+.venv*/
+__pycache__/
+*.pyc
+.DS_Store
+
+# 原始資料由 fetch_data_yf.py 下載，不納入版本控制
+data/
+
+# 執行紀錄與暫存
+logs/
+results_*.log
+*.tgz
+REPORT.md

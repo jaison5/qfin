@@ -1,0 +1,150 @@
+{
+ "agent": "QA3C",
+ "seed": 0,
+ "backend": "lightning.qubit/adjoint",
+ "episodes": 16,
+ "workers": 8,
+ "n_params": 244,
+ "probs": "QLSTM_s0",
+ "train_minutes": 0.8737394173940023,
+ "log": [
+  {
+   "episode": 4,
+   "reward": 2143.096721664659,
+   "train_return_pct": -1.6019152666364,
+   "minutes": 0.41889413595199587
+  },
+  {
+   "episode": 1,
+   "reward": 1900.7883298726153,
+   "train_return_pct": 3.537701198878107,
+   "minutes": 0.4235164999961853
+  },
+  {
+   "episode": 6,
+   "reward": 2654.9349920179975,
+   "train_return_pct": 1.8417930758062528,
+   "minutes": 0.42355353037516275
+  },
+  {
+   "episode": 8,
+   "reward": 2527.562122902869,
+   "train_return_pct": 2.609308753155548,
+   "minutes": 0.4235958178838094
+  },
+  {
+   "episode": 3,
+   "reward": 2346.469377576353,
+   "train_return_pct": -5.723273646357119,
+   "minutes": 0.4242009162902832
+  },
+  {
+   "episode": 2,
+   "reward": 2155.4974564235717,
+   "train_return_pct": -2.9843143588823673,
+   "minutes": 0.42426323095957436
+  },
+  {
+   "episode": 5,
+   "reward": 1534.2308055848432,
+   "train_return_pct": -11.634225274540466,
+   "minutes": 0.4247470498085022
+  },
+  {
+   "episode": 7,
+   "reward": 1721.383028361301,
+   "train_return_pct": -7.169846048056028,
+   "minutes": 0.4256334344546
+  },
+  {
+   "episode": 9,
+   "reward": 2611.7084483532744,
+   "train_return_pct": 1.8699554298004184,
+   "minutes": 0.8673632701237997
+  },
+  {
+   "episode": 11,
+   "reward": 1710.7338299470443,
+   "train_return_pct": -4.50647881876125,
+   "minutes": 0.8705366651217142
+  },
+  {
+   "episode": 10,
+   "reward": 2161.367176883822,
+   "train_return_pct": 3.0732451272219796,
+   "minutes": 0.8719602505366008
+  },
+  {
+   "episode": 13,
+   "reward": 1964.0963982953572,
+   "train_return_pct": -1.7402827061459347,
+   "minutes": 0.8731325348218282
+  },
+  {
+   "episode": 16,
+   "reward": 1407.447942865056,
+   "train_return_pct": -11.238041700067436,
+   "minutes": 0.8732221643129985
+  },
+  {
+   "episode": 14,
+   "reward": 2798.74314217012,
+   "train_return_pct": -1.4889195802431754,
+   "minutes": 0.8732704877853393
+  },
+  {
+   "episode": 15,
+   "reward": 1553.3243797428072,
+   "train_return_pct": -7.937176619634623,
+   "minutes": 0.8733387351036072
+  },
+  {
+   "episode": 12,
+   "reward": 1678.0511072242869,
+   "train_return_pct": -1.1584409632880988,
+   "minutes": 0.8736547668774922
+  }
+ ],
+ "test": {
+  "start": "2020-04-01",
+  "end": "2025-04-30",
+  "days": 1323,
+  "total_return_pct": -2.5684976666999537,
+  "max_drawdown_pct": 6.143888376514351,
+  "trades": 10,
+  "buys": 83,
+  "win_rate_pct": 70.0,
+  "best_trade_pct": 1.380071644597547,
+  "worst_trade_pct": -4.550387855099114,
+  "sum_trade_pct": -1.0311438048700494,
+  "time_in_market_pct": 35.09833585476551,
+  "sharpe_ann": -0.14962894926726278,
+  "action_counts": [
+   0,
+   464,
+   858
+  ],
+  "buy_hold_pct": 6.91929056977294
+ },
+ "train_eval": {
+  "start": "2004-07-19",
+  "end": "2020-03-31",
+  "days": 3649,
+  "total_return_pct": -3.3706645542419644,
+  "max_drawdown_pct": 13.73338895402706,
+  "trades": 45,
+  "buys": 296,
+  "win_rate_pct": 73.33333333333333,
+  "best_trade_pct": 3.8625878672023273,
+  "worst_trade_pct": -4.352342926188757,
+  "sum_trade_pct": 18.801206457865373,
+  "time_in_market_pct": 40.65241228070175,
+  "sharpe_ann": -0.006813357501711837,
+  "action_counts": [
+   11,
+   1472,
+   2165
+  ],
+  "buy_hold_pct": -8.063925606399502
+ }
+}
