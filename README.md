@@ -31,7 +31,7 @@
 | QFWP | Linear(4→3) 15 + Linear(3→1) 4 + Linear(3→3) 12 + Linear(1→1) 2 = 33 | 相同 |
 | 訓練 | 2 epochs、10 seeds、無 gradient accumulation、無 LR scaling | 相同 |
 | 最佳化器、學習率 | 未說明 | Adam、lr 0.05（掃描 9 組後最接近論文者） |
-| 硬體 | Intel Core Ultra 7 265K、96 GB、WSL2 | MacBook Air（Apple M3、8 核心、16 GB、macOS 26） |
+| 硬體 | Intel Core Ultra 7 265K、96 GB、WSL2 | MacBook Air（Apple M4、10 核心、16 GB、macOS 26） |
 
 ### 準確率（論文 Table 2）
 
