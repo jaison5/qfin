@@ -31,7 +31,7 @@
 | QFWP | Linear(4→3) 15 + Linear(3→1) 4 + Linear(3→3) 12 + Linear(1→1) 2 = 33 | 相同 |
 | 訓練 | 2 epochs、10 seeds、無 gradient accumulation、無 LR scaling | 相同 |
 | 最佳化器、學習率 | 未說明 | Adam、lr 0.05（掃描 9 組後最接近論文者） |
-| 硬體 | Intel Core Ultra 7 265K、96 GB、WSL2 | Apple M 系列 CPU |
+| 硬體 | Intel Core Ultra 7 265K、96 GB、WSL2 | Apple M4 |
 
 ### 準確率（論文 Table 2）
 
@@ -250,5 +250,3 @@ python fetch_data_yf.py      # 下載資料
 python pl_check.py           # 檢查實作
 bash run_pl_all.sh 8         # 跑全部實驗（8 = CPU 核心數）
 ```
-
-詳細步驟見 `實驗說明.md`、`PENNYLANE.md`。每次訓練的結果存在 `results/`。
