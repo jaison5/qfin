@@ -1,29 +1,77 @@
-# 量子金融論文重現：QLSTM／QFWP 與 QLSTM＋QA3C
+# Reproducing Quantum Sequence Models for Financial Forecasting and Trading
 
-本專案重現以下兩篇論文，並與論文報告的數值逐項對照：
+![Python](https://img.shields.io/badge/Python-3.12-3776AB?logo=python&logoColor=white)
+![PennyLane](https://img.shields.io/badge/PennyLane-0.45-6E40C9)
+![PyTorch](https://img.shields.io/badge/PyTorch-2.14-EE4C2C?logo=pytorch&logoColor=white)
+![License](https://img.shields.io/badge/License-MIT-green)
 
-| | 論文 | 重現內容 |
-|---|---|---|
-| 實驗一 | Chen, Hung, Tsai, Chen. *Batched Training for QLSTM vs. QFWP: A System-Oriented Approach to EPC-Aware RMSE-DA.* ICASSP 2026（arXiv 2512.21820） | EUR/USD 日線預測；QLSTM 與 QFWP 在不同 batch size 下的準確率與訓練時間 |
-| 實驗二 | Chen, Huang, Tsai, Chen. *Quantum-Enhanced Forecasting for Deep Reinforcement Learning in Algorithmic Trading.* IEEE Globecom Workshops 2025（arXiv 2509.09176） | USD/TWD 的 QLSTM 趨勢預測，以及 QA3C 與古典 A3C 交易代理 |
-
-## 摘要
-
-- **實驗一：主要結論重現成功。**
-  - 在參數量對齊（QLSTM 32、QFWP 33）的條件下，QFWP 在每一種 batch size 的方向準確率（DA）都高於 QLSTM。batch 4～32 的 Wilcoxon 檢定 p ≤ 0.004，與論文一致。
-  - QFWP 的 DA 為 66～71%（論文 66～73%）。
-  - 「batch 加大，整體訓練加速比上限約 2 倍」的系統面結論也重現：QLSTM 在 batch 64 為 2.31×，論文為 2.23×。
-- **實驗二：架構與設定完整重現，結果尚未重現。**
-  - 模型參數量與論文一致：QA3C 244、A3C 3,332。
-  - QLSTM 預測器的測試準確率為 57～66%（論文約 71.5%，測試集僅 88 筆）。
-  - 古典 A3C 的總報酬 9.2%、最大回撤約 1%，與論文的 11.4%、0.92% 在同一量級，但交易次數與勝率明顯不同。
-  - 論文有多項設定未說明，獎勵公式也有疑似筆誤，詳見下文。
-- **資料面的發現**：Yahoo Finance 的匯率日線中，Close 約等於該 K 棒開始時的價格，但 High／Low 涵蓋整天。因此同一列的 O／H／L 含有隔日收盤的資訊；不用任何模型，僅比較當日高低點中間值與收盤，即可判斷隔日方向 73.1%。這可能是實驗一 DA 約 70% 的主要來源（同大小的古典 LSTM 也達 69%），詳見「觀察與建議」。
+重現 **QLSTM vs. QFWP**（ICASSP 2026）與 **QLSTM＋QA3C 交易代理**（IEEE Globecom Workshops 2025）兩篇論文。以 PennyLane `lightning.qubit` + adjoint 微分照論文設定實作，並與論文的數值逐項對照。
 
 ---
 
-## 實驗一：QLSTM vs. QFWP
+## 🔗 目錄 Contents
 
+- [🧭 概述 Overview](#overview)
+- [📌 重現摘要 Summary](#summary)
+- [🧪 實驗一：QLSTM vs. QFWP](#exp1)
+  - [設定](#exp1-setup)
+  - [準確率](#exp1-accuracy)
+  - [訓練加速比](#exp1-speedup)
+  - [與論文的比較](#exp1-compare)
+- [💹 實驗二：QLSTM＋QA3C 交易代理](#exp2)
+  - [設定](#exp2-setup)
+  - [QLSTM 預測器](#exp2-forecaster)
+  - [交易代理](#exp2-agents)
+  - [貨幣 ETF 基準](#exp2-etf)
+  - [與論文的比較](#exp2-compare)
+  - [論文未說明的設定](#exp2-unspecified)
+- [🔍 觀察與建議 Findings](#findings)
+- [🛠️ 環境需求 Requirements](#requirements)
+- [🚀 重現步驟 Usage](#usage)
+- [📁 專案結構 Project Structure](#structure)
+- [📚 參考文獻 References](#references)
+- [📄 授權 License](#license)
+
+---
+
+<a id="overview"></a>
+## 🧭 概述 Overview
+
+| | 論文 | 重現內容 |
+|---|---|---|
+| **實驗一** | Chen, Hung, Tsai, Chen. *Batched Training for QLSTM vs. QFWP: A System-Oriented Approach to EPC-Aware RMSE-DA.* ICASSP 2026 | EUR/USD 日線預測；QLSTM 與 QFWP 在不同 batch size 下的準確率與訓練時間 |
+| **實驗二** | Chen, Huang, Tsai, Chen. *Quantum-Enhanced Forecasting for Deep Reinforcement Learning in Algorithmic Trading.* IEEE Globecom Workshops 2025 | USD/TWD 的 QLSTM 趨勢預測，以及 QA3C 與古典 A3C 交易代理 |
+
+本專案提供兩種後端：
+
+- **PennyLane + PyTorch**：與論文相同，所有結果以這個版本為準。
+- **NumPy**：自行實作的 state-vector 模擬器與反向自動微分，作為交叉驗證。兩種後端的輸出與梯度差異在 1e-15 以內（`pl_check.py`）。
+
+---
+
+<a id="summary"></a>
+## 📌 重現摘要 Summary
+
+| 項目 | 狀態 | 說明 |
+|---|---|---|
+| 實驗一：模型架構 | ✅ 一致 | 參數量 QLSTM 32、QFWP 33；訓練樣本 4,374 筆，與論文相同 |
+| 實驗一：QFWP 優於 QLSTM | ✅ 重現 | 每種 batch 的 DA 都較高；batch 4～32 的 Wilcoxon p ≤ 0.004 |
+| 實驗一：QFWP 準確率 | ✅ 接近 | DA 66～71%（論文 66～73%） |
+| 實驗一：加速比上限約 2× | ✅ 重現 | QLSTM 在 batch 64 為 2.31×（論文 2.23×） |
+| 實驗一：QLSTM 小 batch 準確率 | ⚠️ 偏低 | 比論文低 7～8 個百分點 |
+| 實驗二：模型架構 | ✅ 一致 | 參數量 QA3C 244、A3C 3,332，與論文相同 |
+| 實驗二：QLSTM 預測器 | ⚠️ 偏低 | 測試準確率 57～66%（論文約 71.5%；測試集僅 88 筆） |
+| 實驗二：A3C 報酬與回撤 | ⚠️ 接近 | 9.2% / 約 1%（論文 11.4% / 0.92%），但交易行為不同 |
+| 實驗二：QA3C | ⏳ 執行中 | PennyLane 版結果待補 |
+
+> **資料面的發現**：Yahoo Finance 匯率日線的 Close 約等於該 K 棒開始時的價格，但 High／Low 涵蓋整天，因此同一列的 O／H／L 含有隔日收盤的資訊。不用任何模型，僅比較當日高低點中間值與收盤，即可判斷隔日方向 73.1%。詳見[觀察與建議](#findings)。
+
+---
+
+<a id="exp1"></a>
+## 🧪 實驗一：QLSTM vs. QFWP
+
+<a id="exp1-setup"></a>
 ### 設定
 
 | 項目 | 論文 | 本實作 |
@@ -37,22 +85,24 @@
 | 後端 | PennyLane `lightning.qubit`、adjoint 微分、PyTorch | 相同（PennyLane 0.45.1、PyTorch 2.14.1，Apple M 系列 CPU） |
 | 最佳化器 | 未說明 | Adam，lr 0.05（掃描 9 組後最接近論文者，見 `sweep1.py`） |
 
-### 結果：準確率（10 seeds 平均 ± 標準差）
+<a id="exp1-accuracy"></a>
+### 準確率（10 seeds 平均 ± 標準差）
 
-| Batch | DA QLSTM | DA QFWP | 論文 DA（QLSTM / QFWP） | RMSE QLSTM | RMSE QFWP | 論文 RMSE（QLSTM / QFWP） | Wilcoxon p（RMSE） |
+| Batch | DA QLSTM (%) | DA QFWP (%) | 論文 DA（QLSTM / QFWP） | RMSE QLSTM | RMSE QFWP | 論文 RMSE（QLSTM / QFWP） | Wilcoxon p（RMSE） |
 |---|---|---|---|---|---|---|---|
 | non-batch | 60.33 ± 2.20 | 63.06 ± 6.89 | — | 0.00421 | 0.00455 | — | 0.85 |
-| 4 | 60.74 ± 1.72 | 70.11 ± 1.45 | 69.04 / 72.72 | 0.00424 | 0.00345 | 0.0034 / 0.0030 | 0.004 |
-| 8 | 60.32 ± 1.50 | 69.60 ± 4.38 | 67.89 / 72.75 | 0.00407 | 0.00318 | 0.0036 / 0.0029 | 0.002 |
-| 16 | 59.64 ± 1.12 | 70.98 ± 0.83 | 65.56 / 72.34 | 0.00416 | 0.00301 | 0.0039 / 0.0029 | 0.002 |
-| 32 | 58.47 ± 1.33 | 69.50 ± 2.27 | 62.34 / 70.18 | 0.00418 | 0.00313 | 0.0043 / 0.0031 | 0.002 |
+| 4 | 60.74 ± 1.72 | **70.11 ± 1.45** | 69.04 / 72.72 | 0.00424 | 0.00345 | 0.0034 / 0.0030 | 0.004 |
+| 8 | 60.32 ± 1.50 | **69.60 ± 4.38** | 67.89 / 72.75 | 0.00407 | 0.00318 | 0.0036 / 0.0029 | 0.002 |
+| 16 | 59.64 ± 1.12 | **70.98 ± 0.83** | 65.56 / 72.34 | 0.00416 | **0.00301** | 0.0039 / 0.0029 | 0.002 |
+| 32 | 58.47 ± 1.33 | **69.50 ± 2.27** | 62.34 / 70.18 | 0.00418 | **0.00313** | 0.0043 / 0.0031 | 0.002 |
 | 64 | 57.22 ± 1.82 | 66.20 ± 4.07 | 58.67 / 65.84 | 0.00440 | 0.00371 | 0.0049 / 0.0034 | 0.084 |
 
 參考基準：
 - 隨機漫步（明天 = 今天收盤）：RMSE 0.00499、DA 50.5%
 - 同 hidden 大小的古典 LSTM：DA 68.6～69.7%
 
-### 結果：訓練加速比（non-batch 時間 ÷ batch 時間，中位數）
+<a id="exp1-speedup"></a>
+### 訓練加速比（non-batch 時間 ÷ batch 時間，中位數）
 
 | Batch | QLSTM | 論文 | QFWP | 論文 |
 |---|---|---|---|---|
@@ -62,23 +112,26 @@
 | 32 | 2.32× | 2.08× | 2.52× | 1.94× |
 | 64 | 2.31× | 2.23× | 2.59× | 2.02× |
 
+<a id="exp1-compare"></a>
 ### 與論文的比較
 
-**一致的部分**
+**✅ 一致的部分**
 - 每一種 batch size 下，QFWP 的 DA 都高於 QLSTM，RMSE 也都較低。
 - batch 4～32 的差異在統計上顯著，與論文相同。
 - QFWP 的 DA 與論文相差 0.4～3.2 個百分點；RMSE 在 batch 16、32 為 0.00301、0.00313（論文 0.0029、0.0031）。
 - 加速比在 batch 32 以上趨近約 2.3×，重現「反向傳播的加速有限，限制了整體加速比」的結論。
 
-**有差異的部分**
+**⚠️ 有差異的部分**
 - **QLSTM 在小 batch 的 DA 低於論文 7～8 個百分點**，而且幾乎不隨 batch 變化；論文則是 batch 越大下降越多。最可能的原因是學習率：論文未說明，本實作的 lr 0.05 依 QFWP 的結果選擇。
 - **QFWP 在 batch 8、64 時種子間變異較大**（標準差約 4 個百分點），論文報告的變異較小。
 - **加速比整體略高於論文**，可能來自硬體與套件版本不同（論文：Intel Core Ultra 7 265K、WSL2）。
 
 ---
 
-## 實驗二：QLSTM＋QA3C 交易代理
+<a id="exp2"></a>
+## 💹 實驗二：QLSTM＋QA3C 交易代理
 
+<a id="exp2-setup"></a>
 ### 設定
 
 | 項目 | 論文 | 本實作 |
@@ -87,13 +140,14 @@
 | 切分 | 訓練至 2020-03-31；測試 2020-04-01～2025-04-30 | 相同 |
 | QLSTM 預測器 | 4 天 × (O,H,L,C,MA5,MA10)；5 日 ±1.2% 二元標籤；hidden 2；50 epochs；RMSprop 5e-3；weighted CE | 相同（batch 32） |
 | 狀態／動作 | 10 維狀態；持有、買 1 單位、全部賣出；只做多 | 相同 |
-| 獎勵 | −0.02 + 進場 + 出場 + 持有，截斷 [−15, 30] | 相同（虧損出場項見下方「論文未說明的設定」） |
+| 獎勵 | −0.02 + 進場 + 出場 + 持有，截斷 [−15, 30] | 相同（虧損出場項見[論文未說明的設定](#exp2-unspecified)） |
 | QA3C | 8-qubit VQC；244 參數（量子 32、古典 212） | 相同參數量 |
 | 古典 A3C | 3,332 參數 | 相同（actor 10→128→3、critic 10→128→1） |
-| A3C 超參數 | 8 workers、rollout 30、Shared Adam lr 1e-5、γ 0.995、β 0.05 | 相同；PennyLane 版為 8 個非同步行程 |
-| 訓練量 | 論文的獎勵曲線約在第 1,400 個 episode 收斂 | 1,600 episodes |
+| A3C 超參數 | 8 workers、rollout 30、Shared Adam lr 1e-5、γ 0.995、β 0.05 | 相同；8 個非同步行程 |
+| 訓練量 | 獎勵曲線約在第 1,400 個 episode 收斂 | 1,600 episodes |
 
-### 結果：QLSTM 預測器（測試集 88 筆）
+<a id="exp2-forecaster"></a>
+### QLSTM 預測器（測試集 88 筆）
 
 | | 測試準確率 | 論文 |
 |---|---|---|
@@ -103,18 +157,20 @@
 
 論文的 71.5% 約等於 88 筆中答對 63 筆，本實作為 50～58 筆。
 
-### 結果：交易代理（測試期間 2020-04-01～2025-04-30）
+<a id="exp2-agents"></a>
+### 交易代理（測試期間 2020-04-01～2025-04-30）
 
 | | 總報酬 | 最大回撤 | 交易次數 | 勝率 | 持倉時間 |
 |---|---|---|---|---|---|
 | A3C，PennyLane 版（3 seeds 平均） | 9.16% | 1.06% | 434 | 81.4% | 62% |
 | A3C，NumPy 版（3 seeds 平均） | 9.20% | 0.98% | 435 | 81.2% | 64% |
 | QA3C，NumPy 版（1 seed） | 4.32% | 0.39% | 69 | 88.4% | 10% |
-| QA3C，PennyLane 版 | 執行中 | | | | |
+| QA3C，PennyLane 版 | ⏳ 執行中 | | | | |
 | 論文 A3C | 11.42% | 0.92% | 230 | 54.78% | — |
 | 論文 QA3C | 11.87% | 0.92% | 231 | 56.71% | — |
 | 買進持有 USD | 6.92% | — | — | — | — |
 
+<a id="exp2-etf"></a>
 ### 貨幣 ETF 基準（論文 Table V）
 
 | ETF | 2020-04-01～2025-04-30 實際報酬 | 論文 |
@@ -129,18 +185,20 @@
 
 論文的 ETF 數值與上述期間的實際報酬不一致，推測論文採用了不同的計算期間或價格基準。
 
+<a id="exp2-compare"></a>
 ### 與論文的比較
 
-**一致的部分**
+**✅ 一致的部分**
 - 參數量（QA3C 244、A3C 3,332）、資料切分、特徵、標籤、狀態、動作、獎勵結構、A3C 超參數均依論文設定。
 - PennyLane 版與 NumPy 版的 A3C 結果幾乎相同，兩種實作可以互相驗證。
 - 古典 A3C 的總報酬與最大回撤，與論文在同一量級。
 
-**有差異的部分**
-- **QLSTM 預測器準確率低於論文** 6～15 個百分點。不過測試集只有 88 筆，標準誤約 ±5 個百分點。
+**⚠️ 有差異的部分**
+- **QLSTM 預測器準確率低於論文 6～15 個百分點**。不過測試集只有 88 筆，標準誤約 ±5 個百分點。
 - **交易行為不同**：本實作的 A3C 交易次數約為論文的 2 倍、勝率高約 26 個百分點，代表代理人傾向「小賺即出場」。
 - **QA3C 與 A3C 的相對表現與論文相反**（NumPy 版 1 個種子；PennyLane 版結果待補）。
 
+<a id="exp2-unspecified"></a>
 ### 論文未說明、本實作自行設定的項目
 
 | 項目 | 本實作 |
@@ -156,7 +214,8 @@
 
 ---
 
-## 觀察與建議
+<a id="findings"></a>
+## 🔍 觀察與建議 Findings
 
 1. **匯率日線 OHLC 的前視偏誤。**
    - Yahoo 匯率日線的 Close 與同列 Open 的中位數差距只有 1～2 bp，約等於該 K 棒開始時的價格；但 High／Low 涵蓋整天。
@@ -167,23 +226,72 @@
    - 實驗二的 QA3C 目前只有 1 個種子；強化學習結果變異大，建議至少 3～5 個。
    - 實驗二的分類測試集僅 88 筆，可考慮 walk-forward 驗證或拉長測試期間。
 3. **加入交易成本。** 論文未計交易成本。本實作的 A3C 在測試期間交易約 430 次，建議比較 0、0.05%、0.1% 三種成本下的報酬。
-4. **確認論文未公開的設定。** 實驗二的交易行為對上表的設定非常敏感。若能取得原始程式碼，或確認這些設定，即可直接比對。
+4. **確認論文未公開的設定。** 實驗二的交易行為對[這些設定](#exp2-unspecified)非常敏感。若能取得原始程式碼，或確認這些設定，即可直接比對。
 5. **QLSTM 的學習率。** 實驗一中 QLSTM 與論文的差距集中在小 batch，建議針對 QLSTM 單獨掃描學習率。
 
 ---
 
-## 專案結構
+<a id="requirements"></a>
+## 🛠️ 環境需求 Requirements
+
+| 項目 | 需求 |
+|---|---|
+| Python | 3.11 或 3.12 |
+| 套件 | `torch`、`pennylane`、`pennylane-lightning`、`numpy`、`pandas`、`scipy`、`scikit-learn`、`yfinance`（見 `requirements-pl.txt`） |
+| 作業系統 | macOS、Linux 或 Windows WSL2。A3C 使用 fork 建立 worker 行程，不支援 Windows 原生 Python |
+| 硬體 | CPU 即可，核心越多越快；電路僅 3～8 qubits，GPU 不會加速 |
+
+---
+
+<a id="usage"></a>
+## 🚀 重現步驟 Usage
+
+```bash
+# 1. 建立環境
+python3.12 -m venv .venv-pl && source .venv-pl/bin/activate
+pip install -r requirements-pl.txt yfinance
+
+# 2. 下載資料到 data/
+python fetch_data_yf.py
+
+# 3. 檢查 PennyLane 與 NumPy 實作是否一致（每行都應顯示 OK）
+python pl_check.py
+
+# 4. 執行全部實驗（參數為 CPU 核心數）
+export OMP_NUM_THREADS=1
+export OBJC_DISABLE_INITIALIZE_FORK_SAFETY=YES   # 僅 macOS 需要
+bash run_pl_all.sh 8
+```
+
+單獨執行某個實驗：
+
+```bash
+python pl_exp1.py --seeds 10 --jobs 8 --lr 0.05 --opt adam   # 實驗一
+python report1.py pl_adam0.05                                # 彙整實驗一（Table 2～4）
+
+python pl_exp2.py qlstm --seeds 3                            # 實驗二：QLSTM 預測器
+python pl_exp2.py rl --agent A3C  --seeds 3                  # 實驗二：古典 A3C
+python pl_exp2.py rl --agent QA3C --seeds 1                  # 實驗二：QA3C
+python report2.py exp2_pl                                    # 彙整實驗二（Table IV、V）
+```
+
+詳細步驟與各參數的意義見 [`實驗說明.md`](實驗說明.md) 與 [`PENNYLANE.md`](PENNYLANE.md)；論文與本實作的逐項對照見 [`REPORT_design.md`](REPORT_design.md)。
+
+---
+
+<a id="structure"></a>
+## 📁 專案結構 Project Structure
 
 ```
 ├── README.md              本文件
 ├── REPORT_design.md       論文設定與本實作設定的逐項對照
 ├── 實驗說明.md             環境架設、資料導入、執行步驟、名詞說明
 ├── PENNYLANE.md           PennyLane 版的安裝與執行
-├── requirements-pl.txt    PennyLane 版所需套件
+├── requirements-pl.txt    所需套件
 ├── fetch_data_yf.py       從 Yahoo Finance 下載資料到 data/
 │
 ├── pl_models.py           PennyLane 模型：QLSTM、QFWP、LSTM、QA3C、A3C
-├── pl_check.py            檢查 PennyLane 與 NumPy 實作的輸出、梯度與參數量是否一致
+├── pl_check.py            檢查 PennyLane 與 NumPy 實作的輸出、梯度與參數量
 ├── pl_exp1.py             實驗一（PennyLane）
 ├── pl_exp2.py             實驗二（PennyLane；A3C 為多行程非同步）
 ├── run_pl_all.sh          一次執行全部 PennyLane 實驗
@@ -193,7 +301,7 @@
 ├── common.py              資料讀取、視窗正規化、DA 計算、訓練迴圈
 ├── exp1a.py  sweep1.py    實驗一（NumPy）、最佳化器與學習率掃描
 ├── exp2.py                實驗二（NumPy）：資料、交易環境、代理人、測試
-├── report1.py report2.py  彙整結果（實驗一：Table 2～4；實驗二：Table IV、V）
+├── report1.py report2.py  彙整結果
 ├── test_ad.py test_models2.py   NumPy 實作的梯度檢查
 │
 └── results/
@@ -206,22 +314,19 @@
 
 每次訓練的結果都以 JSON 保存，可以用 `report1.py`、`report2.py` 重新彙整。
 
-## 重現方式
+---
 
-```bash
-# 環境（Python 3.11 或 3.12）
-python -m venv .venv-pl && source .venv-pl/bin/activate
-pip install -r requirements-pl.txt yfinance
+<a id="references"></a>
+## 📚 參考文獻 References
 
-# 資料
-python fetch_data_yf.py
+1. J.-H. Chen, M.-K. Hung, Y.-C. Tsai, S. Y.-C. Chen, "Batched Training for QLSTM vs. QFWP: A System-Oriented Approach to EPC-Aware RMSE-DA," *ICASSP 2026*. arXiv:2512.21820.
+2. J.-H. Chen, Y.-C. Huang, Y.-C. Tsai, S. Y.-C. Chen, "Quantum-Enhanced Forecasting for Deep Reinforcement Learning in Algorithmic Trading," *IEEE Globecom Workshops 2025*. arXiv:2509.09176.
+3. S. Y.-C. Chen, S. Yoo, Y.-L. L. Fang, "Quantum Long Short-Term Memory," *ICASSP 2022*.
+4. S. Y.-C. Chen, "Learning to Program Variational Quantum Circuits with Fast Weights," *IJCNN 2024*.
 
-# 檢查電路實作
-python pl_check.py
+---
 
-# 全部實驗（參數為 CPU 核心數）
-export OMP_NUM_THREADS=1
-bash run_pl_all.sh 8
-```
+<a id="license"></a>
+## 📄 授權 License
 
-詳細步驟與各參數的意義見 `實驗說明.md`、`PENNYLANE.md`。A3C 使用 fork 建立 worker 行程，請在 macOS、Linux 或 WSL2 執行；macOS 需另外設定 `export OBJC_DISABLE_INITIALIZE_FORK_SAFETY=YES`。
+本專案以 [MIT License](LICENSE) 釋出。
