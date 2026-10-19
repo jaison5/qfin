@@ -1,6 +1,6 @@
 # 本機重跑結果（Windows 11、AMD Ryzen 9 9950X3D）
 
-在這台電腦用 repo 裡的 PennyLane 版程式，把兩篇論文的實驗從頭重跑一次，並和論文、以及 repo 原本在 MacBook（Apple M4）上的結果對照。
+把兩篇論文的實驗從頭重跑一次，並和論文、以及 repo 原本在 MacBook（Apple M4）上的結果對照。
 
 - 實驗一：*Batched Training for QLSTM vs. QFWP*（arXiv 2512.21820）
 - 實驗二：*Quantum-Enhanced Forecasting for Deep Reinforcement Learning in Algorithmic Trading*（arXiv 2509.09176）
