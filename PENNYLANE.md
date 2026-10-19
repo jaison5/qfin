@@ -57,5 +57,5 @@ python report2.py exp2_pl
 - **GPU 用不到**：電路只有 3～8 個 qubit，CPU 的 `lightning.qubit` 最快。要試 GPU 需要另外安裝 `pennylane-lightning-gpu`（只支援 Linux／WSL2），再加 `--device lightning.gpu`；RTX 5090 需要較新版本的套件支援。
 - **遇到 adjoint 相關錯誤**：某些版本對 batch 輸入加 adjoint 的支援不同。可以先改用 `--diff best` 確認程式能跑，再回報錯誤訊息給我。
 - **non-batch 的寫法**：本程式的 non-batch 是用 batch 大小 1 的張量輸入；論文可能是直接輸入單一向量。數學上相同，但時間可能略有差異。
-- **A3C 一定要在 Linux 或 WSL2 執行**：它用 fork 建立 worker 行程，Windows 原生的 Python 不支援。
+- **A3C 的 worker 行程**：Linux／macOS 用 fork；Windows 原生 Python 沒有 fork，會自動改用 spawn（在 worker 內重建網路，接上共享記憶體裡的參數和 Shared Adam 狀態），不必用 WSL2。
 - **結果位置**：實驗一在 `results/exp1a_pl_adam0.05/`，實驗二在 `results/exp2_pl/`，執行紀錄在 `logs/`。

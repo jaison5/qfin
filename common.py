@@ -1,5 +1,5 @@
 from __future__ import annotations
-import json, time
+import json, os, time
 from pathlib import Path
 import numpy as np
 import pandas as pd
@@ -9,7 +9,8 @@ from ad import T, Adam, RMSprop, getitem, mean, square, n_params
 DATA = Path(__file__).parent / "data"
 if not DATA.exists() and (Path(__file__).parent.parent / "data").exists():
     DATA = Path(__file__).parent.parent / "data"
-RES = Path(__file__).parent / "results"
+# 結果位置：預設 qfin/results/；設定環境變數 QFIN_RES 可另存（例如換一台機器重跑時，不覆蓋也不略過舊結果）
+RES = Path(os.environ.get("QFIN_RES") or Path(__file__).parent / "results")
 
 
 def load_ohlc(sym: str) -> pd.DataFrame:

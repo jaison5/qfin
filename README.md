@@ -5,6 +5,8 @@
 - 實驗一：*Batched Training for QLSTM vs. QFWP: A System-Oriented Approach to EPC-Aware RMSE-DA*（ICASSP 2026，arXiv 2512.21820）
 - 實驗二：*Quantum-Enhanced Forecasting for Deep Reinforcement Learning in Algorithmic Trading*（Globecom Workshops 2025，arXiv 2509.09176）
 
+在 Windows 11（AMD Ryzen 9 9950X3D）上從頭重跑兩個實驗的結果，見 [REPRODUCTION_WIN.md](REPRODUCTION_WIN.md)（結果在 `results_win/`，紀錄在 `logs_win/`）。
+
 ## 結論
 
 - **實驗一：主要結論有重現。**

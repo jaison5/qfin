@@ -7,7 +7,7 @@ A3C 照論文用真正的非同步多行程（MorvanZhou/pytorch-A3C 的寫法�
   python pl_exp2.py rl --agent A3C  --seeds 3             # 每個種子用 8 個 CPU 核心
   python pl_exp2.py rl --agent QA3C --seeds 1 --seed0 0   # 16 核心可以同時開兩個（--seed0 0 和 --seed0 1）
   python report2.py exp2_pl
-注意：A3C 用 fork 建立 worker，Windows 請在 WSL2（Ubuntu）裡執行。
+注意：A3C 在 Linux／macOS 用 fork 建立 worker；Windows 沒有 fork，改用 spawn，在 worker 內重建網路並接上共享記憶體。
 """
 from __future__ import annotations
 
@@ -105,11 +105,33 @@ def a3c_loss(net, S, A, Vt, beta):
     return (td.pow(2) - dist.log_prob(A) * td.detach() - beta * dist.entropy()).mean()
 
 
+def _shared_tensors(gnet, opt):
+    """spawn（Windows）用：QNode 無法 pickle，只把共享記憶體裡的參數和 Adam 狀態傳給 worker。"""
+    ps = list(gnet.parameters())
+    return [p.data for p in ps], [(opt.state[p]["step"], opt.state[p]["exp_avg"], opt.state[p]["exp_avg_sq"]) for p in ps]
+
+
+def _attach(cfg, shared, lr, betas=(0.92, 0.999), eps=1e-8):
+    """在 worker 內重建全域網路與 Shared Adam，參數和 Adam 狀態都指向主行程的共享記憶體。"""
+    import torch
+    import pl_models as P
+    params, states = shared
+    gnet = P.AGENTS[cfg["agent"]]()
+    for p, d in zip(gnet.parameters(), params):
+        p.data = d
+    opt = torch.optim.Adam(gnet.parameters(), lr=lr, betas=betas, eps=eps)
+    for p, (step, m, v) in zip(gnet.parameters(), states):
+        opt.state[p] = {"step": step, "exp_avg": m, "exp_avg_sq": v}
+    return gnet, opt
+
+
 def worker(wid, gnet, opt, gep, rq, cfg, dtr, ptr):
     import torch
     import pl_models as P
     torch.set_num_threads(1)
     P.configure(cfg["device"], cfg["diff"])
+    if gnet is None:  # spawn：opt 傳進來的是 _shared_tensors() 的結果
+        gnet, opt = _attach(cfg, opt, cfg["lr"])
     torch.manual_seed(cfg["seed"] * 1000 + wid)
     lnet = P.AGENTS[cfg["agent"]]()
     lnet.load_state_dict(gnet.state_dict())
@@ -179,11 +201,13 @@ def train_rl(agent, seed, episodes, workers=8, n_step=30, gamma=0.995, beta=0.05
     gnet = P.AGENTS[agent]()
     gnet.share_memory()
     opt = shared_adam(gnet.parameters(), lr)
-    ctx = mp.get_context("fork")
+    fork = "fork" in mp.get_all_start_methods()
+    ctx = mp.get_context("fork" if fork else "spawn")
     gep, rq = ctx.Value("i", 0), ctx.Queue()
     cfg = {"agent": agent, "seed": seed, "episodes": episodes, "n_step": n_step, "gamma": gamma, "beta": beta,
-           "device": device, "diff": diff}
-    procs = [ctx.Process(target=worker, args=(w, gnet, opt, gep, rq, cfg, dtr, ptr)) for w in range(workers)]
+           "device": device, "diff": diff, "lr": lr}
+    wargs = (gnet, opt) if fork else (None, _shared_tensors(gnet, opt))
+    procs = [ctx.Process(target=worker, args=(w, *wargs, gep, rq, cfg, dtr, ptr)) for w in range(workers)]
     t0 = time.time()
     for p in procs:
         p.start()

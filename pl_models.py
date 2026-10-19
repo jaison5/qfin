@@ -9,12 +9,14 @@ import torch.nn as nn
 torch.set_default_dtype(torch.float64)
 DEVICE = "lightning.qubit"   # 可改成 "default.qubit"
 DIFF = "adjoint"             # 論文的設定；遇到版本問題可改成 "best"
+VJP = False                  # PennyLane 預設：adjoint 在前向就把梯度算好；True（device_vjp）則改在反向才用 adjoint 算 VJP
 
 
-def configure(device: str = None, diff: str = None):
-    global DEVICE, DIFF
+def configure(device: str = None, diff: str = None, device_vjp: bool = None):
+    global DEVICE, DIFF, VJP
     DEVICE = device or DEVICE
     DIFF = diff or DIFF
+    VJP = VJP if device_vjp is None else device_vjp
 
 
 # ---------------------------------------------------------------- 電路
@@ -24,7 +26,7 @@ def qlstm_gate_qnode(nq: int, H: int, depth: int = 1):
     """QLSTM 一個閘門的 VQC：|+> 起始 → Ry(輸入) 編碼 → [even-odd CNOT 階梯 → 每條線 Ry(權重)] × depth → 量測前 H 條線 <Z>。"""
     dev = qml.device(DEVICE, wires=nq)
 
-    @qml.qnode(dev, interface="torch", diff_method=DIFF)
+    @qml.qnode(dev, interface="torch", diff_method=DIFF, device_vjp=VJP)
     def circuit(inputs, weights):
         for w in range(nq):
             qml.Hadamard(wires=w)
@@ -45,7 +47,7 @@ def qfwp_qnode(nq: int = 3, D: int = 1, A: int = 1):
     """QFWP 的 VQC：|0> 起始 → Ry(z_t) 編碼 → [CNOT 鏈 → Ry(Θ_t)] × D → 量測前 A 條線。Θ_t 由慢程式產生（不是可訓練權重）。"""
     dev = qml.device(DEVICE, wires=nq)
 
-    @qml.qnode(dev, interface="torch", diff_method=DIFF)
+    @qml.qnode(dev, interface="torch", diff_method=DIFF, device_vjp=VJP)
     def circuit(z, theta):
         for q in range(nq):
             qml.RY(z[..., q], wires=q)
@@ -63,7 +65,7 @@ def qa3c_qnode(nq: int = 8):
     """QA3C 的 VQC：|+> 起始 → Ry(x) 編碼 → [CNOT 環 → Rz(w0)] → [CNOT 環 → Ry(w1)] → 量測 8 條線 <Z>。"""
     dev = qml.device(DEVICE, wires=nq)
 
-    @qml.qnode(dev, interface="torch", diff_method=DIFF)
+    @qml.qnode(dev, interface="torch", diff_method=DIFF, device_vjp=VJP)
     def circuit(inputs, weights):
         for q in range(nq):
             qml.Hadamard(wires=q)
