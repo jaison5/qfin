@@ -281,4 +281,3 @@ bash logs_win/run_exp2_win.sh                                                   
 .venv-pl/Scripts/python.exe pl_exp1_timing.py --seeds 3 --jobs 16                       # 補充計時
 ```
 
-紀錄檔在 `logs_win/`，結果在 `results_win/`。
