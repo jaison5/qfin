@@ -10,7 +10,7 @@
 | | Mac | Windows |
 |---|---|---|
 | 硬體 | MacBook Air（Apple M4、10 核心、16 GB）。無風扇，長時間執行可能降頻，影響計時 | AMD Ryzen 9 9950X3D（16 核 32 緒）、32 GB |
-| 系統 | macOS 26 | Windows 11 Pro，原生 Python 3.11（不用 WSL） |
+| 系統 | macOS 26 | Windows 11 ，原生 Python 3.11（不用 WSL） |
 | 套件 | PennyLane 0.45.1、PyTorch 2.14.1 | 相同 |
 | 結果 | `results/` | `results_win/`（紀錄在 `logs_win/`） |
 | 詳細報告 | 本頁 | [REPRODUCTION_WIN.md](REPRODUCTION_WIN.md) |
